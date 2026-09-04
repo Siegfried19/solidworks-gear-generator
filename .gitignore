@@ -1,0 +1,28 @@
+# Build output
+*.dll
+*.exe
+*.pdb
+*.obj
+addin/build/
+
+# SOLIDWORKS interop assemblies are Dassault redistributables.
+# Copy them from <SOLIDWORKS install>\api\redist\ — never commit them.
+SolidWorks.Interop.*.dll
+
+# SOLIDWORKS working files
+*.SLDPRT
+*.SLDASM
+*.SLDDRW
+*.swp
+~$*
+
+# Generated icons / logs
+*.log
+gear*.png
+
+# Editors / OS
+.vs/
+.vscode/
+*.user
+Thumbs.db
+desktop.ini
