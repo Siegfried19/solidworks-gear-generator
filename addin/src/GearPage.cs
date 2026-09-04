@@ -194,6 +194,18 @@ namespace GearWorks
             GearAddin.Log("  复选框 null? " + (cKey == null) + "   组合框 null? " + (cType == null)
                 + "   结果框 60..67: " + s);
 
+            // 消息区只在这里设一次。绝不能在控件回调里调它 —— 见 Refresh 中的注释。
+            try
+            {
+                page.SetMessage3(
+                    "填参数，下方【计算结果】随输入实时更新。\r\n" +
+                    "根切、齿顶变尖、齿顶过薄会在最后一行提示。确认后点 ✓ 生成实体。",
+                    (int)swPropertyManagerPageMessageVisibility.swImportantMessageBox,
+                    (int)swPropertyManagerPageMessageExpanded.swMessageBoxExpand,
+                    "渐开线齿轮");
+            }
+            catch (Exception ex) { GearAddin.Log("  SetMessage3(建页一次) 异常: " + ex.Message); }
+
             Refresh("建页首刷");
         }
 
@@ -430,8 +442,28 @@ namespace GearWorks
 
         // ================= 刷新回显 =================
 
+        /// <summary>
+        /// 只留存参数，不碰任何控件。失焦、滑块结束这类"补一刀"的回调走这里 ——
+        /// 它们只是为了别漏掉用户输入，没必要再刷一遍界面。
+        /// 在控件回调里反复重排面板，正是崩溃的来源。
+        /// </summary>
+        void Snap(string who)
+        {
+            try
+            {
+                cur = ReadMerged();
+                GearAddin.Log("Snap[" + who + "] 留存: " + Dump(cur));
+            }
+            catch (Exception ex) { GearAddin.Log("!!! Snap[" + who + "] 异常: " + ex.Message); }
+        }
+
+        /// <summary>防重入：刷新时写控件可能再次触发回调，嵌套进来会踩死 SolidWorks</summary>
+        bool refreshing;
+
         void Refresh(string who)
         {
+            if (refreshing) { GearAddin.Log("Refresh[" + who + "] 跳过(重入)"); return; }
+            refreshing = true;
             GearParams p = null;
             try
             {
@@ -449,16 +481,19 @@ namespace GearWorks
                 SetOut(6, "齿顶厚   sa = " + N(g.Sa) + " mm   全齿高 h = " + N(Math.Abs(g.Ra - g.Rf)) + " mm");
                 string w = Warn(p, g);
                 SetOut(7, w);
-                Echo(p, g, w);
+                // 这里【不能】调 SetMessage3：它带 MessageBoxExpand 会让 SolidWorks 重排整个属性页，
+                // 在控件变更回调内部触发重排 = 重入崩溃。消息区只在建页时设一次。
+                GearAddin.Log("Refresh[" + who + "] 界面已更新");
             }
             catch (Exception ex)
             {
                 // 绝不静默吞异常：吞了就分不清是"算不出来"还是"画不出来"
                 GearAddin.Log("!!! Refresh[" + who + "] 异常: " + ex.GetType().Name + ": " + ex.Message);
                 GearAddin.Log("    " + ex.StackTrace);
-                SetOut(7, "参数超出可计算范围：" + ex.Message);
-                if (p != null) Echo(p, null, "参数超出可计算范围：" + ex.Message);
+                try { SetOut(7, "参数超出可计算范围：" + ex.Message); }
+                catch { }
             }
+            finally { refreshing = false; }
         }
 
         /// <summary>
@@ -466,7 +501,9 @@ namespace GearWorks
         /// 消息区是 SolidWorks 自己维护的、可靠重绘的区域，即使上面那些控件全都不刷新，
         /// 用户也能在这里一眼确认自己填的值确实被读到了。
         /// </summary>
-        void Echo(GearParams p, GearGeom g, string warn)
+        /// <summary>【已停用】不要在任何控件回调里调用它。SetMessage3 会让 SolidWorks
+        /// 重排整个属性页，在回调内部触发重排会崩进程（2026-09-04 实测）。</summary>
+        void Echo_DoNotCallFromCallbacks(GearParams p, GearGeom g, string warn)
         {
             if (page == null || p == null) return;
             try
@@ -571,7 +608,7 @@ namespace GearWorks
             {
                 cbNum[id] = val;
                 GearAddin.Log("OnNumberBoxTrackingCompleted " + NameOf(id) + "(id=" + id + ") = " + val);
-                Refresh("滑块结束");
+                Snap("滑块结束");   // 只留存，界面已由 OnNumberboxChanged 刷过
             }
             catch (Exception ex) { GearAddin.Log("!!! OnNumberBoxTrackingCompleted 异常: " + ex.Message); }
         }
@@ -610,7 +647,7 @@ namespace GearWorks
         /// </summary>
         public void OnLostFocus(int id)
         {
-            try { GearAddin.Log("OnLostFocus id=" + id); Refresh("失焦"); }
+            try { Snap("失焦 id=" + id); }   // 只留存，不重排界面
             catch (Exception ex) { GearAddin.Log("!!! OnLostFocus 异常: " + ex.Message); }
         }
 
