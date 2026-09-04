@@ -511,6 +511,13 @@ namespace GearWorks
                 if (g.Pointed) return "⚠ 齿顶变尖，齿顶圆已自动收到 " + N(g.Da);
                 if (g.Sa < 0.25 * p.Mn) return "⚠ 齿顶厚仅 " + N(g.Sa) + " mm，偏薄";
             }
+            else
+            {
+                if (g.Ra <= g.Rb + 1e-9)
+                    return "⚠ 齿顶圆 " + N(g.Da) + " 已落到基圆 " + N(g.Db) + " 之内，齿顶不是渐开线，请增大齿数";
+                if (g.Ra - g.Rb < 0.5 * p.Mn)
+                    return "内齿：齿顶距基圆仅 " + N(g.Ra - g.Rb) + " mm，偏紧";
+            }
             if (Math.Abs(p.Beta) > 1e-9)
                 return "斜齿：生成端面齿形，拉伸后加【扭曲】特征，扭转角 "
                     + (p.Bw * Math.Tan(g.BetaR) / g.R / GearMath.D2R).ToString("0.000") + "°";

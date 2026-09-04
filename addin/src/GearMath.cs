@@ -33,6 +33,7 @@ namespace GearWorks
         public double ZMin, XMin, Sa, W, M, Dp, Zv, Pb, Sc, Hc;
         public int K;
         public bool Pointed;
+        public bool IsInt;        // 内齿圈：齿廓是渐开线的凹侧，半齿角公式符号相反
         public double D { get { return 2 * R; } }
         public double Da { get { return 2 * Ra; } }
         public double Df { get { return 2 * Rf; } }
@@ -72,6 +73,7 @@ namespace GearWorks
             g.Pb = Math.PI * g.Mt * Math.Cos(g.AlfT);
             g.Zv = p.Z / Math.Pow(Math.Cos(b), 3);
 
+            g.IsInt = p.IsInternal;
             if (p.IsInternal)
             {
                 g.ST = g.Mt * Math.PI / 2.0 - 2.0 * p.X * p.Mn * Math.Tan(g.AlfT);
@@ -120,14 +122,18 @@ namespace GearWorks
 
             return g;
         }
-
         /// <summary>半齿角（半径 th 处，从齿中心量）</summary>
         public static double HalfAng(GearGeom g, double th)
         {
             if (th < g.Rb) th = g.Rb;
             double q = g.Rb / th;
             if (q > 1) q = 1;
-            return g.Psi + Inv(g.AlfT) - Inv(Math.Acos(q));
+            double iv = Inv(Math.Acos(q));
+            // 外齿：齿廓是渐开线凸侧，半径越大齿越薄  -> psi + inv(at) - inv(ay)
+            // 内齿：齿廓是渐开线凹侧，半径越大齿越厚  -> psi + inv(ay) - inv(at)
+            //       （内齿的齿根在外侧、齿顶在内侧，所以齿是"根粗顶细"，和外齿同理）
+            return g.IsInt ? g.Psi + iv - Inv(g.AlfT)
+                           : g.Psi + Inv(g.AlfT) - iv;
         }
 
         /// <summary>半齿廓结果</summary>
@@ -192,7 +198,7 @@ namespace GearWorks
                 for (int i = 1; i <= p.Npts; i++)
                 {
                     double ay = aS + (aE - aS) * i / p.Npts;
-                    h.Pts.Add(Pol(rb / Math.Cos(ay), -(g.Psi + Inv(at) - Inv(ay))));
+                    h.Pts.Add(Pol(rb / Math.Cos(ay), -HalfAng(g, rb / Math.Cos(ay))));
                 }
             }
             h.ThA = Math.Max(0, HalfAng(g, g.RaUse));
@@ -224,7 +230,10 @@ namespace GearWorks
         {
             Half h = new Half();
             double at = g.AlfT, rb = g.Rb;
+            // 圆角半径还要受齿根处可用齿槽宽限制，否则两侧圆角会把齿根平底挤没
+            double spaceAtRf = (2 * Math.PI / p.Z - 2 * HalfAng(g, g.Rf)) * g.Rf;   // 齿根处槽宽
             double rc = Math.Min(p.Rho * p.Mn, (g.Rf - g.RaUse) * 0.35);
+            rc = Math.Min(rc, Math.Max(0.02 * p.Mn, spaceAtRf * 0.28));
             h.Rc = rc;
 
             double lo = Math.Acos(Math.Min(1, rb / Math.Max(rb * 1.0001, g.RaUse)));
@@ -277,7 +286,7 @@ namespace GearWorks
         // ---- 内部工具 ----
         static double[] FlPt(GearGeom g, double ay)
         {
-            return Pol(g.Rb / Math.Cos(ay), -(g.Psi + Inv(g.AlfT) - Inv(ay)));
+            return Pol(g.Rb / Math.Cos(ay), -HalfAng(g, g.Rb / Math.Cos(ay)));
         }
 
         static double[] FilCen(GearGeom g, double ay, double rc)
@@ -363,7 +372,19 @@ namespace GearWorks
                     s += string.Format("· 内孔偏大，孔壁到齿根仅 {0:0.000} mm。\r\n", g.Rf - p.Bore / 2);
             }
             else
+            {
+                // 内齿最要命的一条：齿顶圆必须在基圆之外，否则齿顶段根本不是渐开线。
+                // 标准齿制 ha*=1 时门槛 z > 2ha*/(1-cos alphaT) 约 34（KHK 式4.7）。
+                double zLim = 2.0 * p.Ha / (1.0 - Math.Cos(g.AlfT));
+                if (g.Ra <= g.Rb + 1e-9)
+                    s += string.Format("· 【严重】齿顶圆 {0:0.000} 落到基圆 {1:0.000} 之内，齿顶段不是渐开线。需 z >= {2:0}，或减小齿顶高系数（内齿常用 ha*=0.6）。\r\n", g.Da, g.Db, Math.Ceiling(zLim));
+                else if (g.Ra - g.Rb < 0.5 * p.Mn)
+                    s += string.Format("· 齿顶圆距基圆仅 {0:0.000} mm，偏紧（z >= {1:0} 才宽裕）。\r\n", g.Ra - g.Rb, Math.Ceiling(zLim));
+                if (g.Sa < 0.25 * p.Mn)
+                    s += string.Format("· 内齿齿顶厚仅 {0:0.000} mm，偏薄。\r\n", g.Sa);
                 s += "· 内齿圈齿根过渡按相切圆弧生成（渐开线齿廓部分精确）。\r\n";
+                s += "· 配对提示：标准 20 度内啮合还需满足渐开线干涉与齿廓重叠干涉，z2=40 时小齿轮宜取 24~30 齿。\r\n";
+            }
             if (Math.Abs(p.Beta) > 1e-9)
                 s += string.Format("· 斜齿：生成的是端面齿形直齿体。加【扭曲】特征，扭转角 = {0:0.000}°。\r\n",
                     p.Bw * Math.Tan(g.BetaR) / g.R / D2R);

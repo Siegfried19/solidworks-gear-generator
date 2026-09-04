@@ -255,7 +255,9 @@ function calc(P){
     G.rf=r-(P.ha+P.cc-P.x)*P.mn;
   }
   G.psi=G.sT/(2*r);
-  G.thA=function(th){ var q=Math.min(1,rb/Math.max(th,rb)); return G.psi+inv(at)-inv(Math.acos(q)); };
+  // 外齿：齿廓是渐开线凸侧，半径越大越薄；内齿是凹侧，半径越大越厚（根粗顶细）
+  G.thA=function(th){ var q=Math.min(1,rb/Math.max(th,rb)), iv=inv(Math.acos(q));
+    return isInt ? G.psi+iv-inv(at) : G.psi+inv(at)-iv; };
   G.rPoint=rb/Math.cos(invInv(G.psi+inv(at)));
   G.pointed = !isInt && (G.ra>=G.rPoint-1e-9);
   G.raUse = G.pointed ? G.rPoint*0.999995 : G.ra;
@@ -315,7 +317,7 @@ function halfExternal(P,G,N){
 /* ======= 内齿轮：渐开线 + 齿根过渡圆弧 ======= */
 function halfInternal(P,G,N){
   var at=G.at, rb=G.rb, rc=Math.min(P.rho*P.mn,(G.rf-G.raUse)*0.35);
-  function fl(ay){ return pol(rb/Math.cos(ay), -(G.psi+inv(at)-inv(ay))); }
+  function fl(ay){ var rr=rb/Math.cos(ay); return pol(rr, -G.thA(rr)); }
   function ctr(ay){
     var A=fl(ay), B=fl(Math.max(1e-4,ay-1e-4));
     var tx=A[0]-B[0], ty=A[1]-B[1], L=Math.hypot(tx,ty)||1e-9; tx/=L; ty/=L;
@@ -328,7 +330,8 @@ function halfInternal(P,G,N){
   var cen=ctr(aJ), tc=Math.atan2(cen[1],cen[0]), A=fl(aJ);
   var pts=[pol(G.rf,-Math.PI/P.z)], nl=Math.max(2,Math.round(N/10));
   for(var n1=1;n1<=nl;n1++) pts.push(pol(G.rf,-Math.PI/P.z+(tc+Math.PI/P.z)*n1/nl));
-  var a0=Math.atan2(-cen[1],-cen[0]), a1=Math.atan2(A[1]-cen[1],A[0]-cen[0]), da=a1-a0;
+  // 圆心在齿根圆内侧，切点在圆心【外侧】方向；写成 atan2(-cen) 会差 180°，齿根出倒钩
+  var a0=Math.atan2(cen[1],cen[0]), a1=Math.atan2(A[1]-cen[1],A[0]-cen[0]), da=a1-a0;
   while(da>Math.PI)da-=TAU; while(da<-Math.PI)da+=TAU;
   var nf=Math.max(3,Math.round(N/8));
   for(var n2=1;n2<=nf;n2++){ var a=a0+da*n2/nf; pts.push([cen[0]+rc*Math.cos(a),cen[1]+rc*Math.sin(a)]); }

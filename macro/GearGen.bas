@@ -1,4 +1,4 @@
-﻿Attribute VB_Name = "GearGen"
+Attribute VB_Name = "GearGen"
 '=====================================================================
 ' 渐开线圆柱齿轮生成器  for SolidWorks  (VBA 宏)
 '---------------------------------------------------------------------
@@ -209,7 +209,11 @@ Function HalfAng(ByVal th As Double) As Double
     Dim q As Double
     If th < rb Then th = rb
     q = rb / th: If q > 1 Then q = 1
-    HalfAng = psi + Involute(alfT) - Involute(ACos(q))
+    If isInt Then
+        HalfAng = psi + Involute(ACos(q)) - Involute(alfT)   ' 内齿：渐开线凹侧，根粗顶细
+    Else
+        HalfAng = psi + Involute(alfT) - Involute(ACos(q))
+    End If
 End Function
 
 '=====================================================================
@@ -284,7 +288,8 @@ Sub Flank(fx() As Double, fy() As Double, n As Long)
         landA = PI / zz + tc
         If landA < 0 Then landA = 0
         px(cnt) = rf * Cos(tc): py(cnt) = rf * Sin(tc): cnt = cnt + 1
-        a0 = ATan2(-cy, -cx): a1 = ATan2(FlY(aJ) - cy, FlX(aJ) - cx)
+        ' 切点在圆心外侧方向，写成 ATan2(-cy,-cx) 会差 180°，齿根出倒钩
+        a0 = ATan2(cy, cx): a1 = ATan2(FlY(aJ) - cy, FlX(aJ) - cx)
         da = a1 - a0
         Do While da > PI
             da = da - 2 * PI
@@ -377,10 +382,10 @@ End Sub
 
 ' 内齿：渐开线点 + 圆角中心
 Function FlX(ay As Double) As Double
-    FlX = (rb / Cos(ay)) * Cos(-(psi + Involute(alfT) - Involute(ay)))
+    FlX = (rb / Cos(ay)) * Cos(-HalfAng(rb / Cos(ay)))
 End Function
 Function FlY(ay As Double) As Double
-    FlY = (rb / Cos(ay)) * Sin(-(psi + Involute(alfT) - Involute(ay)))
+    FlY = (rb / Cos(ay)) * Sin(-HalfAng(rb / Cos(ay)))
 End Function
 Sub FilCen(ay As Double, rc As Double, cx As Double, cy As Double)
     Dim ax As Double, ayy As Double, bx As Double, byy As Double
