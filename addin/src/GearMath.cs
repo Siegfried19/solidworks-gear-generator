@@ -245,7 +245,10 @@ namespace GearWorks
             h.Pts.Add(Pol(g.Rf, tc));
 
             double[] A = FlPt(g, aJ);
-            double a0 = Math.Atan2(-cen[1], -cen[0]);
+            // 圆心在齿根圆内侧(|cen| = rf - rc)，与齿根圆的切点在圆心的【外侧】方向上，
+            // 即 cen + rc·cen/|cen|。原来写成 atan2(-cen) 是朝原点，差 180°，
+            // 导致圆弧从错误的一端起扫，齿根出现倒钩。
+            double a0 = Math.Atan2(cen[1], cen[0]);
             double a1 = Math.Atan2(A[1] - cen[1], A[0] - cen[0]);
             double da = a1 - a0;
             while (da > Math.PI) da -= 2 * Math.PI;
