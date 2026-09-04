@@ -39,7 +39,7 @@ namespace GearWorks
         // ================= 控件 ID（全页唯一）=================
         const int GRP_MAIN = 1, GRP_STRUCT = 2, GRP_TOOL = 3, GRP_OUT = 4;
         const int ID_MN = 10, ID_Z = 11, ID_AN = 12, ID_BETA = 13, ID_X = 14;
-        const int ID_BW = 20, ID_BORE = 21, ID_KEY = 22, ID_TYPE = 23;
+        const int ID_BW = 20, ID_BORE = 21, ID_TYPE = 23;
         const int ID_HA = 30, ID_CC = 31, ID_RHO = 32, ID_NP = 33;
         const int ID_OUT = 60;          // 结果行 60..67
         const int ID_CAP = 100;         // 参数名标签 100 起自增
@@ -53,7 +53,6 @@ namespace GearWorks
         ISldWorks swApp;
         IPropertyManagerPage2 page;
         IPropertyManagerPageNumberbox nMn, nZ, nAn, nBeta, nX, nBw, nBore, nHa, nCc, nRho, nNp;
-        IPropertyManagerPageCheckbox cKey;
         IPropertyManagerPageCombobox cType;
 
         // 计算结果回显：只读文本框。若要换回 Label，见文件末尾 LabOut() 的说明。
@@ -75,7 +74,6 @@ namespace GearWorks
         /// <summary>SolidWorks 回调直接送来的值 id -> val（不经过读控件，最可信）</summary>
         Dictionary<int, double> cbNum = new Dictionary<int, double>();
 
-        bool initKey, cbKeyHas, cbKey;
         int initType, cbType;
         bool cbTypeHas;
 
@@ -142,15 +140,6 @@ namespace GearWorks
             nBore = Num(g2, ID_BORE, "内孔直径  d0  (mm)  —— 填 0 则不做孔",
                 "轴孔直径。", false, 0, 2000, 1, d.Bore);
 
-            // 复选框有 Caption 属性，文字会正常显示，不用另配标签
-            cKey = g2.AddControl2(ID_KEY,
-                (short)swPropertyManagerPageControlType_e.swControlType_Checkbox,
-                "轮毂平键槽（按 GB/T 1095 自动查表）",
-                (short)swPropertyManagerPageControlLeftAlign_e.swControlAlign_LeftEdge,
-                CtlOpt(false), "按内孔直径自动确定键槽宽度 b 和轮毂槽深 t2")
-                as IPropertyManagerPageCheckbox;
-            if (cKey == null) GearAddin.Log("  !!! 键槽复选框建立失败");
-            else { cKey.Checked = d.Keyway; initKey = d.Keyway; GearAddin.Log("  复选框 " + ID_KEY + " 写入 " + d.Keyway + " 回读 " + cKey.Checked); }
 
             // 组合框没有 Caption 属性，标题必须另起一行 Label
             Cap(g2, "齿轮类型", "外齿轮或内齿圈");
@@ -191,7 +180,7 @@ namespace GearWorks
                 + " rho=" + (nRho == null) + " np=" + (nNp == null));
             string s = "";
             for (int i = 0; i < NOUT; i++) s += (outBox[i] == null ? "null " : "ok ");
-            GearAddin.Log("  复选框 null? " + (cKey == null) + "   组合框 null? " + (cType == null)
+            GearAddin.Log("  组合框 null? " + (cType == null)
                 + "   结果框 60..67: " + s);
 
             // 消息区只在这里设一次。绝不能在控件回调里调它 —— 见 Refresh 中的注释。
@@ -385,20 +374,6 @@ namespace GearWorks
             p.Rho = GetNum(nRho, ID_RHO, p.Rho);
             p.Npts = (int)Math.Round(GetNum(nNp, ID_NP, p.Npts));
 
-            if (cKey != null)
-            {
-                try
-                {
-                    bool live = cKey.Checked;
-                    if (cbKeyHas && live == initKey && cbKey != initKey)
-                    {
-                        GearAddin.Log("  !! 复选框读回初值 " + initKey + "，判定为已被复位，改用回调值 " + cbKey);
-                        p.Keyway = cbKey;
-                    }
-                    else p.Keyway = live;
-                }
-                catch (Exception ex) { GearAddin.Log("  读复选框异常: " + ex.Message); }
-            }
             if (cType != null)
             {
                 try
@@ -435,7 +410,6 @@ namespace GearWorks
             if (nCc != null) p.Cc = nCc.Value;
             if (nRho != null) p.Rho = nRho.Value;
             if (nNp != null) p.Npts = (int)Math.Round(nNp.Value);
-            if (cKey != null) p.Keyway = cKey.Checked;
             if (cType != null) p.IsInternal = (cType.CurrentSelection == 1);
             return p;
         }
@@ -512,7 +486,7 @@ namespace GearWorks
                     + "   压力角 αn=" + N(p.AlfN) + "°   螺旋角 β=" + N(p.Beta) + "°"
                     + "   变位 x=" + N(p.X) + "\r\n"
                     + "齿宽 b=" + N(p.Bw) + "   内孔 d0=" + N(p.Bore)
-                    + "   键槽=" + (p.Keyway ? "有" : "无")
+    
                     + "   类型=" + (p.IsInternal ? "内齿圈" : "外齿轮") + "\r\n";
                 if (g != null)
                     s += "分度圆 d=" + N(g.D) + "   齿顶圆 da=" + N(g.Da)
@@ -554,16 +528,15 @@ namespace GearWorks
             return "mn=" + p.Mn + " z=" + p.Z + " an=" + p.AlfN + " beta=" + p.Beta
                 + " x=" + p.X + " bw=" + p.Bw + " bore=" + p.Bore + " ha=" + p.Ha
                 + " cc=" + p.Cc + " rho=" + p.Rho + " npts=" + p.Npts
-                + " key=" + p.Keyway + " 内齿=" + p.IsInternal;
+                + " 内齿=" + p.IsInternal;
         }
 
         string DumpCb()
         {
-            if (cbNum.Count == 0 && !cbKeyHas && !cbTypeHas) return "(本次一个回调都没收到)";
+            if (cbNum.Count == 0 && !cbTypeHas) return "(本次一个回调都没收到)";
             string s = "";
             foreach (KeyValuePair<int, double> kv in cbNum)
                 s += NameOf(kv.Key) + "=" + kv.Value + " ";
-            if (cbKeyHas) s += "key=" + cbKey + " ";
             if (cbTypeHas) s += "type=" + cbType + " ";
             return s;
         }
@@ -583,7 +556,6 @@ namespace GearWorks
                 case ID_CC: return "cc";
                 case ID_RHO: return "rho";
                 case ID_NP: return "npts";
-                case ID_KEY: return "key";
                 case ID_TYPE: return "type";
                 default: return "id" + id;
             }
@@ -617,7 +589,6 @@ namespace GearWorks
         {
             try
             {
-                if (id == ID_KEY) { cbKey = val; cbKeyHas = true; }
                 GearAddin.Log("OnCheckboxCheck id=" + id + " = " + val);
                 Refresh("复选框变更");
             }
@@ -717,7 +688,7 @@ namespace GearWorks
                         + "压力角   αn = " + N(p.AlfN) + "°\r\n"
                         + "变位系数 x  = " + N(p.X) + "\r\n"
                         + "齿宽     b  = " + N(p.Bw) + " mm\r\n"
-                        + "内孔     d0 = " + N(p.Bore) + " mm   键槽 " + (p.Keyway ? "有" : "无") + "\r\n"
+                        + "内孔     d0 = " + N(p.Bore) + " mm\r\n"
                         + "------------------------------\r\n"
                         + "分度圆 d  = " + N(g.D) + " mm\r\n"
                         + "齿顶圆 da = " + N(g.Da) + " mm\r\n"
@@ -744,7 +715,7 @@ namespace GearWorks
         {
             nMn = null; nZ = null; nAn = null; nBeta = null; nX = null;
             nBw = null; nBore = null; nHa = null; nCc = null; nRho = null; nNp = null;
-            cKey = null; cType = null;
+            cType = null;
             for (int i = 0; i < outBox.Length; i++) outBox[i] = null;
             page = null;
         }

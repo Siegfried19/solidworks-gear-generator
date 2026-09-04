@@ -7,7 +7,7 @@ namespace GearWorks
 {
     /// <summary>
     /// 把齿廓落进 SolidWorks。
-    /// 架构：齿坯(一个圆) -> 切掉一个齿槽(6 段实体) -> 圆周阵列 z 次 -> 内孔键槽。
+    /// 架构：齿坯(一个圆) -> 切掉一个齿槽(6 段实体) -> 圆周阵列 z 次 -> 内孔。
     /// 这是 Fusion 360 官方 SpurGear、Onshape、FreeCAD、study-gears 一致采用的做法：
     /// 草图实体从 z*4 降到 6，每个特征独立可判成败，失败时能定位到具体哪一步。
     /// </summary>
@@ -21,7 +21,7 @@ namespace GearWorks
             GearMath.Half h = GearMath.Flank(p, g);
 
             GearAddin.Log("Build: mn=" + p.Mn + " z=" + p.Z + " x=" + p.X + " bw=" + p.Bw
-                + " bore=" + p.Bore + " key=" + p.Keyway + " int=" + p.IsInternal);
+                + " bore=" + p.Bore + " int=" + p.IsInternal);
             GearAddin.Log("  d=" + F(g.D) + " da=" + F(g.Da) + " df=" + F(g.Df) + " rb=" + F(g.Rb)
                 + "  半齿廓点数=" + h.Pts.Count + " landA=" + h.LandA.ToString("0.000000")
                 + " thA=" + h.ThA.ToString("0.000000"));
@@ -103,7 +103,7 @@ namespace GearWorks
                     catch { }
                 }
 
-                // ---------- 4) 内孔 + 键槽 ----------
+                // ---------- 4) 内孔 ----------
                 if (p.Bore > 0 && !p.IsInternal && p.Bore / 2 < g.Rf * 0.98)
                 {
                     err = NewSketchOnPlane(model, sk, 0);
@@ -332,23 +332,11 @@ namespace GearWorks
 
         // ================= 内孔 =================
 
+        /// <summary>内孔：光孔。键槽功能已移除（2026-09-04）。</summary>
         static void DrawBore(SketchManager sk, GearParams p)
         {
-            double r0 = p.Bore / 2.0;
-            double[] ky = p.Keyway ? GearMath.Keyway(p.Bore) : null;
-            if (ky == null)
-            {
-                sk.CreateCircle(0, 0, 0, r0 * MM, 0, 0);
-                return;
-            }
-            double hb = ky[0] / 2.0, top = r0 + ky[1];
-            double ys = Math.Sqrt(Math.Max(0, r0 * r0 - hb * hb));
-            sk.CreateArc(0, 0, 0, hb * MM, ys * MM, 0, -hb * MM, ys * MM, 0, (short)-1);
-            sk.CreateLine(-hb * MM, ys * MM, 0, -hb * MM, top * MM, 0);
-            sk.CreateLine(-hb * MM, top * MM, 0, hb * MM, top * MM, 0);
-            sk.CreateLine(hb * MM, top * MM, 0, hb * MM, ys * MM, 0);
+            sk.CreateCircle(0, 0, 0, p.Bore / 2.0 * MM, 0, 0);
         }
-
         // ================= 自定义属性 =================
 
         static void WriteProps(ModelDoc2 model, GearParams p, GearGeom g)

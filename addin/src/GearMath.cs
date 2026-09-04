@@ -16,7 +16,6 @@ namespace GearWorks
         public double Cc = 0.25;       // 顶隙系数
         public double Rho = 0.38;      // 刀尖圆角系数
         public double Bore = 12;       // 内孔直径，0=不做孔
-        public bool Keyway = true;     // 平键槽
         public bool IsInternal = false;// 内齿圈
         public double OdInt = 0;       // 内齿圈外径，0=自动
         public int Npts = 24;          // 每侧齿廓型值点数
@@ -59,17 +58,6 @@ namespace GearWorks
                 if (Math.Abs(s) < 1e-15) break;
             }
             return a;
-        }
-
-        /// <summary>GB/T 1095 轮毂键槽：返回 {b, t2}，超表返回 null</summary>
-        public static double[] Keyway(double d)
-        {
-            double[] lim = { 8, 10, 12, 17, 22, 30, 38, 44, 50, 58, 65, 75, 85, 95, 110, 130 };
-            double[] bb = { 2, 3, 4, 5, 6, 8, 10, 12, 14, 16, 18, 20, 22, 25, 28, 32 };
-            double[] tt = { 1.0, 1.4, 1.8, 2.3, 2.8, 3.3, 3.3, 3.3, 3.8, 4.3, 4.4, 4.9, 5.4, 5.4, 6.4, 7.4 };
-            for (int i = 0; i < lim.Length; i++)
-                if (d <= lim[i]) return new double[] { bb[i], tt[i] };
-            return null;
         }
 
         public static GearGeom Calc(GearParams p)
@@ -323,7 +311,7 @@ namespace GearWorks
             return new double[] { r * Math.Cos(t), r * Math.Sin(t) };
         }
 
-        /// <summary>内孔（含键槽）轮廓点</summary>
+        /// <summary>内孔轮廓点（光孔）</summary>
         public static List<double[]> BorePts(double r0, double[] ky, int n)
         {
             List<double[]> pts = new List<double[]>();

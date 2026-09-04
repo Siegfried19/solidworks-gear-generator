@@ -84,12 +84,6 @@ class Test
             Math.Sqrt(h6.Pts[0][0] * h6.Pts[0][0] + h6.Pts[0][1] * h6.Pts[0][1]), g6.Rf);
 
         Console.WriteLine();
-        Console.WriteLine("=== F. keyway / bore ===");
-        double[] ky = GearMath.Keyway(12);
-        Console.WriteLine("d12 -> b={0} t2={1} (expect 4 / 1.8)", ky[0], ky[1]);
-        List<double[]> bp = GearMath.BorePts(6, ky, 60);
-        Console.WriteLine("bore pts={0}  top y={1:0.000} expect 7.8", bp.Count, bp[bp.Count - 1][1]);
-
         Console.WriteLine();
         Console.WriteLine("=== G. 闭合性（相邻齿接缝）===");
         // 齿根圆弧终点 应等于 半齿廓起点
