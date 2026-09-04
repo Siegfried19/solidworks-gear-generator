@@ -1,9 +1,8 @@
 @echo off
 setlocal enabledelayedexpansion
 rem ===================================================================
-rem  Build GearWorks.dll  鈥? no Visual Studio required
-rem  Locates SOLIDWORKS via the registry, copies the interop assemblies
-rem  next to the output, and compiles with the .NET Framework csc.exe.
+rem  Build GearWorks.dll  -  no Visual Studio required
+rem  Usage:  build.cmd [output_dir]      default: %~dp0build
 rem ===================================================================
 
 set "CSC=%windir%\Microsoft.NET\Framework64\v4.0.30319\csc.exe"
@@ -12,7 +11,8 @@ if not exist "%CSC%" (
     exit /b 1
 )
 
-rem ---- find SOLIDWORKS ----
+if "%~1"=="" (set "OUT=%~dp0build") else (set "OUT=%~1")
+
 set "SWDIR="
 for %%V in (2026 2025 2024 2023 2022 2021 2020 2019 2018 2017 2016) do (
     if not defined SWDIR (
@@ -23,27 +23,23 @@ for %%V in (2026 2025 2024 2023 2022 2021 2020 2019 2018 2017 2016) do (
 )
 if not defined SWDIR (
     echo [ERROR] Could not locate SOLIDWORKS in the registry.
-    echo         Set SWDIR manually, e.g.:
-    echo             set "SWDIR=D:\Program Files\SOLIDWORKS Corp\SOLIDWORKS\"
-    echo         then run this script again.
+    echo         Set SWDIR manually, then run again.
     exit /b 1
 )
 set "REDIST=%SWDIR%api\redist"
 if not exist "%REDIST%\SolidWorks.Interop.sldworks.dll" (
-    echo [ERROR] Interop assemblies not found in:
-    echo         %REDIST%
+    echo [ERROR] Interop assemblies not found in: %REDIST%
     exit /b 1
 )
-echo SOLIDWORKS : %SWDIR%
 
-rem ---- stage output ----
-set "OUT=%~dp0build"
+echo SOLIDWORKS : %SWDIR%
+echo Output     : %OUT%
+
 if not exist "%OUT%" mkdir "%OUT%"
 for %%F in (sldworks swconst swpublished) do (
     copy /y "%REDIST%\SolidWorks.Interop.%%F.dll" "%OUT%\" >nul
 )
 
-rem ---- compile ----
 "%CSC%" /nologo /target:library /platform:x64 /langversion:5 ^
     /out:"%OUT%\GearWorks.dll" ^
     /r:"%REDIST%\SolidWorks.Interop.sldworks.dll" ^
@@ -59,8 +55,9 @@ if errorlevel 1 (
 
 copy /y "%~dp0install.bat"   "%OUT%\" >nul
 copy /y "%~dp0uninstall.bat" "%OUT%\" >nul
+
 echo.
 echo Build OK:  %OUT%\GearWorks.dll
-echo Next: run "%OUT%\install.bat" as administrator, then restart SOLIDWORKS.
+echo Next: run install.bat in that folder as administrator, then restart SOLIDWORKS.
 echo.
 endlocal

@@ -68,10 +68,20 @@ the model's custom properties, so drawings can reference it directly.
 
 ---
 
-## Build and install
+## Install
 
-The SOLIDWORKS interop assemblies are **not** redistributed here. Copy them from your own
-installation — they live in:
+### Option A — prebuilt release (no compiler needed)
+
+Download the ZIP from the [Releases](../../releases) page, unpack it somewhere permanent, then
+right-click `install.bat` → **Run as administrator**. Restart SOLIDWORKS.
+
+> The install path is written into the registry, so **do not move the folder afterwards**.
+> To relocate: run `uninstall.bat`, move it, run `install.bat` again.
+
+### Option B — build from source
+
+The SOLIDWORKS interop assemblies are **not** committed to this repository. Copy them from your
+own installation — they live in:
 
 ```
 <SOLIDWORKS install>\api\redist\
@@ -84,23 +94,29 @@ Then:
 
 ```bat
 cd addin
-build.cmd
+build.cmd                     REM output goes to addin\build
+build.cmd D:\somewhere\else   REM or pick your own output directory
 ```
 
 `build.cmd` locates SOLIDWORKS through the registry, copies the three interop DLLs next to the
-output, and compiles `GearWorks.dll`. Then, **as administrator**:
+output, and compiles `GearWorks.dll`. Then run `install.bat` from the output folder **as
+administrator** and restart SOLIDWORKS.
+
+A **Gear Tools** tab appears in the CommandManager when a part document is open. If it does not,
+enable the add-in under *Tools → Add-Ins* (tick both columns).
+
+To remove: `uninstall.bat` as administrator, then delete the folder.
+
+### Packaging a release
 
 ```bat
-install.bat
+cd addin
+make-release.cmd                              REM addin\release, v1.0.0
+make-release.cmd D:\out v1.1.0                REM or specify both
 ```
 
-Restart SOLIDWORKS. A **Gear Tools** tab appears in the CommandManager when a part document is
-open. If it does not, enable it under *Tools → Add-Ins*.
-
-> The install folder is recorded in the registry as an absolute path — **do not move it** after
-> installing. To relocate: run `uninstall.bat`, move the folder, run `install.bat` again.
-
-To remove: `uninstall.bat` (as administrator), then delete the folder.
+Produces `GearWorks-<version>-solidworks.zip` containing the add-in, the interop assemblies,
+the install scripts and a quick-start note — ready to attach to a GitHub Release.
 
 ---
 

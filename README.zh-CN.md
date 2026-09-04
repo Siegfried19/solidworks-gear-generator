@@ -63,9 +63,19 @@ SOLIDWORKS 用户能拿到的齿轮工具，齿廓基本都是近似的。这个
 
 ---
 
-## 编译与安装
+## 安装
 
-SOLIDWORKS 的 interop 程序集**不随本仓库分发**，请从你自己的安装目录复制：
+### 方式 A —— 直接下载编译好的（不需要编译器）
+
+从 [Releases](../../releases) 页面下载 ZIP，解压到一个固定位置，
+右键 `install.bat` → **以管理员身份运行**，重启 SOLIDWORKS。
+
+> 安装路径会写进注册表，**装完不要移动这个文件夹**。
+> 要挪：先跑 `uninstall.bat`，移动，再跑 `install.bat`。
+
+### 方式 B —— 从源码编译
+
+SOLIDWORKS 的 interop 程序集**不随本仓库提交**，请从你自己的安装目录复制：
 
 ```
 <SOLIDWORKS 安装目录>\api\redist\
@@ -78,23 +88,27 @@ SOLIDWORKS 的 interop 程序集**不随本仓库分发**，请从你自己的�
 
 ```bat
 cd addin
-build.cmd
+build.cmd                     REM 输出到 addin\build
+build.cmd D:\code\XXXBuild    REM 或自己指定输出目录
 ```
 
 `build.cmd` 会从注册表找到 SOLIDWORKS，把三个 interop DLL 复制到输出目录，编译出
-`GearWorks.dll`。接着**以管理员身份**运行：
+`GearWorks.dll`。然后在输出目录里**以管理员身份**运行 `install.bat`，重启 SOLIDWORKS。
 
-```bat
-install.bat
-```
-
-重启 SOLIDWORKS。打开零件文档后，功能区会出现 **齿轮工具** 选项卡。
-没出现的话去 *工具 → 插件* 里勾选。
-
-> 安装目录的绝对路径会被写进注册表，装完**不要移动这个文件夹**。
-> 要挪：先跑 `uninstall.bat`，移动，再跑 `install.bat`。
+打开零件文档后，功能区会出现 **齿轮工具** 选项卡。没出现的话去 *工具 → 插件* 里勾选（两列都勾）。
 
 卸载：以管理员身份运行 `uninstall.bat`，然后删掉文件夹。
+
+### 打 Release 包
+
+```bat
+cd addin
+make-release.cmd                        REM 输出到 addin\release，版本 v1.0.0
+make-release.cmd D:\out v1.1.0          REM 或两个都指定
+```
+
+生成 `GearWorks-<版本>-solidworks.zip`，里面是插件 + interop 库 + 安装脚本 + 快速说明，
+可以直接作为附件传到 GitHub Release。
 
 ---
 
